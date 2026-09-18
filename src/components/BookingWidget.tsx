@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Agent, GeneratedSlot, TourType } from '@/types/database';
 import { POPULAR_TIMEZONES, getBrowserTimezone, formatZoned } from '@/lib/timezone-utils';
-import { Calendar, Clock, Globe, ShieldAlert, CheckCircle2, User, Mail, Phone, Video, MapPin, AlertCircle, RefreshCw } from 'lucide-react';
+import { Calendar, Clock, Globe, CheckCircle2, User, Mail, Phone, Video, MapPin, AlertCircle, RefreshCw } from 'lucide-react';
 
 interface BookingWidgetProps {
   agent: Agent;
@@ -18,7 +18,6 @@ export default function BookingWidget({
   listingTitle,
   onSuccess,
 }: BookingWidgetProps) {
-  // Default date: tomorrow
   const getTomorrowDateStr = () => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
@@ -32,25 +31,20 @@ export default function BookingWidget({
   const [loadingSlots, setLoadingSlots] = useState<boolean>(false);
   const [slotError, setSlotError] = useState<string | null>(null);
 
-  // Form State
   const [clientName, setClientName] = useState('');
   const [clientEmail, setClientEmail] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [tourType, setTourType] = useState<TourType>('in_person');
   const [notes, setNotes] = useState('');
 
-  // Submission State
   const [submitting, setSubmitting] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [bookingSuccess, setBookingSuccess] = useState<any | null>(null);
 
-  // Auto-detect client timezone on mount
   useEffect(() => {
-    const detected = getBrowserTimezone();
-    setClientTimezone(detected);
+    setClientTimezone(getBrowserTimezone());
   }, []);
 
-  // Fetch slots whenever agent, date, or client timezone changes
   const fetchSlots = useCallback(async () => {
     if (!agent?.id || !selectedDate) return;
     setLoadingSlots(true);
@@ -64,12 +58,12 @@ export default function BookingWidget({
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to retrieve available slots');
+        throw new Error(data.error || 'Failed to retrieve available times');
       }
 
       setSlots(data.slots || []);
     } catch (err: any) {
-      setSlotError(err.message || 'Error fetching slots');
+      setSlotError(err.message || 'Unable to load available times');
     } finally {
       setLoadingSlots(false);
     }
@@ -82,7 +76,7 @@ export default function BookingWidget({
   const handleBookSlot = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSlot) {
-      setBookingError('Please choose an available appointment slot');
+      setBookingError('Please select an available time');
       return;
     }
 
@@ -113,21 +107,19 @@ export default function BookingWidget({
 
       if (!res.ok) {
         if (res.status === 409) {
-          // SLOT CONFLICT!
           setBookingError(
-            `SLOT CONFLICT PREVENTED: This slot was just booked or overlaps with an existing showing for ${agent.name}. Please select a different time slot.`
+            `This time is no longer available. Please choose a different slot.`
           );
-          // Refresh slots to show newly booked state
           fetchSlots();
           return;
         }
-        throw new Error(data.error || 'Failed to complete booking');
+        throw new Error(data.error || 'Unable to complete your request');
       }
 
       setBookingSuccess(data);
       if (onSuccess) onSuccess();
     } catch (err: any) {
-      setBookingError(err.message || 'Failed to book slot');
+      setBookingError(err.message || 'Something went wrong. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -145,53 +137,43 @@ export default function BookingWidget({
 
   if (bookingSuccess) {
     return (
-      <div className="bg-slate-900 border border-emerald-500/30 rounded-2xl p-6 sm:p-8 shadow-2xl text-slate-100">
-        <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto mb-4">
-          <CheckCircle2 className="w-8 h-8" />
+      <div className="bg-white border border-stone-200 rounded-2xl p-6 sm:p-8 shadow-sm">
+        <div className="w-14 h-14 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center mx-auto mb-4">
+          <CheckCircle2 className="w-7 h-7" />
         </div>
-        <h3 className="text-xl font-bold text-center text-white mb-2">Showing Confirmed!</h3>
-        <p className="text-sm text-slate-400 text-center mb-6">
-          Your appointment has been securely committed and locked against slot conflicts.
+        <h3 className="text-xl font-semibold text-center text-stone-900 mb-2">Appointment Confirmed</h3>
+        <p className="text-sm text-stone-500 text-center mb-6">
+          Your showing has been scheduled. A confirmation will be sent to your email shortly.
         </p>
 
-        <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 space-y-3 mb-6 text-xs">
+        <div className="bg-stone-50 border border-stone-100 rounded-xl p-4 space-y-3 mb-6 text-sm">
           {listingTitle && (
-            <div className="flex justify-between border-b border-slate-800 pb-2">
-              <span className="text-slate-400">Property:</span>
-              <span className="text-white font-medium text-right max-w-[200px] truncate">{listingTitle}</span>
+            <div className="flex justify-between border-b border-stone-200 pb-2">
+              <span className="text-stone-500">Property</span>
+              <span className="text-stone-900 font-medium text-right max-w-[200px] truncate">{listingTitle}</span>
             </div>
           )}
-          <div className="flex justify-between border-b border-slate-800 pb-2">
-            <span className="text-slate-400">Agent:</span>
-            <span className="text-amber-400 font-medium">{agent.name} ({agent.timezone})</span>
+          <div className="flex justify-between border-b border-stone-200 pb-2">
+            <span className="text-stone-500">Advisor</span>
+            <span className="text-stone-900 font-medium">{agent.name}</span>
           </div>
-          <div className="flex justify-between border-b border-slate-800 pb-2">
-            <span className="text-slate-400">Your Time ({clientTimezone}):</span>
-            <span className="text-emerald-400 font-mono font-medium">
+          <div className="flex justify-between border-b border-stone-200 pb-2">
+            <span className="text-stone-500">Date & Time</span>
+            <span className="text-stone-900 font-medium">
               {formatZoned(bookingSuccess.start_time, clientTimezone, 'EEE, MMM d, yyyy h:mm a')}
             </span>
           </div>
-          <div className="flex justify-between border-b border-slate-800 pb-2">
-            <span className="text-slate-400">Agent Local Time:</span>
-            <span className="text-white font-mono font-medium">
-              {formatZoned(bookingSuccess.start_time, agent.timezone, 'EEE, MMM d, yyyy h:mm a')}
-            </span>
-          </div>
-          <div className="flex justify-between border-b border-slate-800 pb-2">
-            <span className="text-slate-400">Type:</span>
-            <span className="text-white capitalize font-medium">{bookingSuccess.tour_type.replace('_', ' ')}</span>
-          </div>
           <div className="flex justify-between">
-            <span className="text-slate-400">Confirmation ID:</span>
-            <span className="text-slate-400 font-mono text-[11px]">{bookingSuccess.id.slice(0, 8)}...</span>
+            <span className="text-stone-500">Type</span>
+            <span className="text-stone-900 capitalize font-medium">{bookingSuccess.tour_type.replace('_', ' ')}</span>
           </div>
         </div>
 
         <button
           onClick={handleReset}
-          className="w-full py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold transition-all shadow-lg shadow-amber-500/20 text-sm"
+          className="w-full py-3 px-4 rounded-full bg-stone-900 hover:bg-stone-800 text-white font-medium transition-all text-sm"
         >
-          Book Another Tour
+          Schedule Another Visit
         </button>
       </div>
     );
@@ -200,53 +182,42 @@ export default function BookingWidget({
   const todayStr = new Date().toISOString().split('T')[0];
 
   return (
-    <div className="bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-2xl p-6 sm:p-7 shadow-2xl text-slate-100">
-      <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-6">
-        <div>
-          <h3 className="text-lg font-bold text-white flex items-center space-x-2">
-            <Calendar className="w-5 h-5 text-amber-400" />
-            <span>Schedule a Tour</span>
-          </h3>
-          <p className="text-xs text-slate-400 mt-0.5">
-            With <span className="text-amber-400 font-medium">{agent.name}</span>
-          </p>
-        </div>
-        <div className="text-right">
-          <span className="text-[11px] uppercase tracking-wider text-slate-400 block font-semibold">Agent Base</span>
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-mono bg-slate-800 text-amber-300 border border-slate-700">
-            {agent.timezone.replace('_', ' ')}
-          </span>
-        </div>
+    <div className="bg-white border border-stone-200 rounded-2xl p-6 sm:p-7 shadow-sm">
+      <div className="border-b border-stone-100 pb-4 mb-6">
+        <h3 className="text-lg font-semibold text-stone-900 flex items-center space-x-2">
+          <Calendar className="w-5 h-5 text-amber-800" />
+          <span>Schedule a Private Showing</span>
+        </h3>
+        <p className="text-sm text-stone-500 mt-1">
+          With {agent.name}
+        </p>
       </div>
 
-      {/* Date & Client Timezone Picker Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-        {/* Date */}
         <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center space-x-1.5">
-            <Calendar className="w-3.5 h-3.5 text-amber-400" />
-            <span>Select Date</span>
+          <label className="block text-xs font-medium text-stone-600 mb-1.5 flex items-center space-x-1.5">
+            <Calendar className="w-3.5 h-3.5 text-stone-400" />
+            <span>Preferred Date</span>
           </label>
           <input
             type="date"
             min={todayStr}
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400 transition-colors"
+            className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-sm text-stone-900 focus:outline-none focus:border-stone-400 transition-colors"
           />
         </div>
 
-        {/* Client Timezone */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <label className="text-xs font-semibold text-slate-300 flex items-center space-x-1.5">
-              <Globe className="w-3.5 h-3.5 text-amber-400" />
+            <label className="text-xs font-medium text-stone-600 flex items-center space-x-1.5">
+              <Globe className="w-3.5 h-3.5 text-stone-400" />
               <span>Your Timezone</span>
             </label>
             <button
               type="button"
               onClick={() => setClientTimezone(getBrowserTimezone())}
-              className="text-[11px] text-amber-400 hover:text-amber-300 underline"
+              className="text-[11px] text-amber-800 hover:text-amber-900 underline"
             >
               Auto-detect
             </button>
@@ -254,10 +225,10 @@ export default function BookingWidget({
           <select
             value={clientTimezone}
             onChange={(e) => setClientTimezone(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400 transition-colors truncate"
+            className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2.5 text-sm text-stone-900 focus:outline-none focus:border-stone-400 transition-colors truncate"
           >
             {POPULAR_TIMEZONES.map((tz) => (
-              <option key={tz.value} value={tz.value} className="bg-slate-950 text-white">
+              <option key={tz.value} value={tz.value}>
                 {tz.label} ({tz.offset})
               </option>
             ))}
@@ -265,44 +236,30 @@ export default function BookingWidget({
         </div>
       </div>
 
-      {/* Timezone synchronicity indicator */}
-      <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3 mb-6 flex items-start space-x-2.5 text-xs text-slate-400">
-        <Globe className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-        <div>
-          <p className="text-slate-300 font-medium">Cross-Timezone Synchronized</p>
-          <p className="text-[11px] mt-0.5 leading-relaxed">
-            Times below are calculated automatically from {agent.name}&apos;s local hours in{' '}
-            <strong className="text-slate-200">{agent.timezone}</strong> and converted into your local timezone (
-            <strong className="text-amber-400">{clientTimezone}</strong>).
-          </p>
-        </div>
-      </div>
-
-      {/* Available Slots Section */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
-          <label className="text-xs font-semibold text-slate-300 flex items-center space-x-1.5">
-            <Clock className="w-3.5 h-3.5 text-amber-400" />
-            <span>Available Slots for Showing</span>
+          <label className="text-xs font-medium text-stone-600 flex items-center space-x-1.5">
+            <Clock className="w-3.5 h-3.5 text-stone-400" />
+            <span>Available Times</span>
           </label>
           {loadingSlots && (
-            <div className="flex items-center space-x-1.5 text-xs text-amber-400">
+            <div className="flex items-center space-x-1.5 text-xs text-stone-500">
               <RefreshCw className="w-3 h-3 animate-spin" />
-              <span>Calculating slots...</span>
+              <span>Loading...</span>
             </div>
           )}
         </div>
 
         {slotError && (
-          <div className="p-3 bg-red-950/40 border border-red-800/50 rounded-xl text-red-300 text-xs flex items-center space-x-2">
+          <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-red-700 text-xs flex items-center space-x-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{slotError}</span>
           </div>
         )}
 
         {!loadingSlots && slots.length === 0 && (
-          <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 text-center text-xs text-slate-400">
-            No scheduled showing hours found for this agent on the selected day. Please try another date (e.g. Monday - Friday).
+          <div className="p-4 bg-stone-50 rounded-xl border border-stone-100 text-center text-xs text-stone-500">
+            No availability on this date. Please try another day.
           </div>
         )}
 
@@ -318,25 +275,15 @@ export default function BookingWidget({
                   type="button"
                   disabled={!isAvailable}
                   onClick={() => setSelectedSlot(slot)}
-                  className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                  className={`p-2.5 rounded-xl border text-left transition-all ${
                     isSelected
-                      ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-lg shadow-amber-500/20 font-bold scale-[1.02]'
+                      ? 'bg-stone-900 text-white border-stone-900 font-medium'
                       : isAvailable
-                      ? 'bg-slate-950/80 hover:bg-slate-800 border-slate-800 text-slate-200 hover:border-amber-400/50'
-                      : 'bg-slate-950/30 border-slate-900/60 text-slate-600 cursor-not-allowed opacity-60 line-through'
+                      ? 'bg-stone-50 hover:bg-stone-100 border-stone-200 text-stone-700 hover:border-stone-300'
+                      : 'bg-stone-50/50 border-stone-100 text-stone-300 cursor-not-allowed line-through'
                   }`}
                 >
-                  <div className="flex items-center justify-between w-full">
-                    <span className="text-xs font-semibold">{slot.clientStartTimeFormatted}</span>
-                    {!isAvailable && (
-                      <span className="text-[9px] bg-red-950/80 text-red-400 px-1.5 py-0.5 rounded border border-red-800/50 uppercase">
-                        Booked
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[10px] mt-1 text-slate-400 opacity-90 truncate">
-                    Agent: {slot.agentStartTimeFormatted}
-                  </div>
+                  <span className="text-xs font-medium">{slot.clientStartTimeFormatted}</span>
                 </button>
               );
             })}
@@ -344,63 +291,47 @@ export default function BookingWidget({
         )}
       </div>
 
-      {/* Selected Slot Summary */}
       {selectedSlot && (
-        <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl mb-6 flex items-center justify-between text-xs">
-          <div>
-            <span className="text-amber-400 font-semibold block">Selected Slot:</span>
-            <span className="text-white font-mono">
-              {selectedSlot.clientStartTimeFormatted} - {selectedSlot.clientEndTimeFormatted}
-            </span>
-          </div>
-          <div className="text-right">
-            <span className="text-slate-400 text-[11px] block">Agent Local:</span>
-            <span className="text-slate-300 font-mono text-[11px]">
-              {selectedSlot.agentStartTimeFormatted} - {selectedSlot.agentEndTimeFormatted}
-            </span>
-          </div>
+        <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl mb-6 text-xs text-stone-700">
+          <span className="font-medium text-amber-900">Selected: </span>
+          {selectedSlot.clientStartTimeFormatted} – {selectedSlot.clientEndTimeFormatted}
         </div>
       )}
 
-      {/* Booking Form */}
       <form onSubmit={handleBookSlot} className="space-y-4">
         {bookingError && (
-          <div className="p-3.5 bg-red-950/60 border border-red-700/80 rounded-xl text-red-200 text-xs flex items-start space-x-2">
-            <ShieldAlert className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-bold text-red-300">Conflict / Booking Error</p>
-              <p className="mt-0.5 leading-relaxed">{bookingError}</p>
-            </div>
+          <div className="p-3.5 bg-red-50 border border-red-100 rounded-xl text-red-700 text-xs">
+            {bookingError}
           </div>
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Your Full Name</label>
+            <label className="block text-xs font-medium text-stone-600 mb-1">Full Name</label>
             <div className="relative">
-              <User className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+              <User className="w-4 h-4 text-stone-400 absolute left-3 top-3" />
               <input
                 type="text"
                 required
-                placeholder="e.g. Eleanor Vance"
+                placeholder="Your name"
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-amber-400"
+                className="w-full bg-stone-50 border border-stone-200 rounded-xl pl-9 pr-3 py-2 text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:border-stone-400"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Email Address</label>
+            <label className="block text-xs font-medium text-stone-600 mb-1">Email</label>
             <div className="relative">
-              <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+              <Mail className="w-4 h-4 text-stone-400 absolute left-3 top-3" />
               <input
                 type="email"
                 required
-                placeholder="eleanor@example.com"
+                placeholder="you@email.com"
                 value={clientEmail}
                 onChange={(e) => setClientEmail(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-amber-400"
+                className="w-full bg-stone-50 border border-stone-200 rounded-xl pl-9 pr-3 py-2 text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:border-stone-400"
               />
             </div>
           </div>
@@ -408,30 +339,30 @@ export default function BookingWidget({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Phone Number</label>
+            <label className="block text-xs font-medium text-stone-600 mb-1">Phone</label>
             <div className="relative">
-              <Phone className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+              <Phone className="w-4 h-4 text-stone-400 absolute left-3 top-3" />
               <input
                 type="tel"
                 required
                 placeholder="+1 (555) 000-0000"
                 value={clientPhone}
                 onChange={(e) => setClientPhone(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-amber-400"
+                className="w-full bg-stone-50 border border-stone-200 rounded-xl pl-9 pr-3 py-2 text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:border-stone-400"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Showing Preference</label>
+            <label className="block text-xs font-medium text-stone-600 mb-1">Showing Type</label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => setTourType('in_person')}
-                className={`py-2 px-2 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1 border transition-all ${
+                className={`py-2 px-2 rounded-xl text-xs font-medium flex items-center justify-center space-x-1 border transition-all ${
                   tourType === 'in_person'
-                    ? 'bg-amber-500 text-slate-950 border-amber-400'
-                    : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'
+                    ? 'bg-stone-900 text-white border-stone-900'
+                    : 'bg-stone-50 text-stone-500 border-stone-200 hover:text-stone-700'
                 }`}
               >
                 <MapPin className="w-3.5 h-3.5" />
@@ -440,51 +371,47 @@ export default function BookingWidget({
               <button
                 type="button"
                 onClick={() => setTourType('virtual_video')}
-                className={`py-2 px-2 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1 border transition-all ${
+                className={`py-2 px-2 rounded-xl text-xs font-medium flex items-center justify-center space-x-1 border transition-all ${
                   tourType === 'virtual_video'
-                    ? 'bg-amber-500 text-slate-950 border-amber-400'
-                    : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'
+                    ? 'bg-stone-900 text-white border-stone-900'
+                    : 'bg-stone-50 text-stone-500 border-stone-200 hover:text-stone-700'
                 }`}
               >
                 <Video className="w-3.5 h-3.5" />
-                <span>Live Video</span>
+                <span>Virtual Tour</span>
               </button>
             </div>
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1">Special Inquiries or Questions (Optional)</label>
+          <label className="block text-xs font-medium text-stone-600 mb-1">Notes (Optional)</label>
           <textarea
             rows={2}
-            placeholder="Tell the agent what features you'd like to inspect..."
+            placeholder="Any questions or special requests..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 resize-none"
+            className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-sm text-stone-900 placeholder-stone-400 focus:outline-none focus:border-stone-400 resize-none"
           />
         </div>
 
         <button
           type="submit"
           disabled={!selectedSlot || submitting}
-          className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-bold transition-all shadow-lg shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 text-sm"
+          className="w-full py-3 px-4 rounded-full bg-stone-900 hover:bg-stone-800 text-white font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 text-sm"
         >
           {submitting ? (
             <>
               <RefreshCw className="w-4 h-4 animate-spin" />
-              <span>Checking Concurrency & Locking Slot...</span>
+              <span>Confirming...</span>
             </>
           ) : (
             <>
               <CheckCircle2 className="w-4 h-4" />
-              <span>Confirm & Lock Appointment</span>
+              <span>Confirm Appointment</span>
             </>
           )}
         </button>
-
-        <p className="text-[11px] text-slate-500 text-center flex items-center justify-center space-x-1">
-          <span>Protected by PostgreSQL GiST exclusion lock against double-booking</span>
-        </p>
       </form>
     </div>
   );

@@ -8,18 +8,18 @@ export default async function AgentsPage() {
   const agents = await getAgents();
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 py-12">
+    <div className="min-h-screen py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-12 text-center max-w-2xl mx-auto">
-          <div className="inline-flex items-center space-x-2 text-xs uppercase tracking-widest text-amber-400 font-semibold mb-2">
+          <div className="inline-flex items-center space-x-2 text-xs uppercase tracking-widest text-amber-800 font-medium mb-2">
             <Users className="w-4 h-4" />
-            <span>Dedicated Representation</span>
+            <span>Our Team</span>
           </div>
-          <h1 className="text-3xl sm:text-5xl font-black text-white">
-            Our Global Real Estate Advisors
+          <h1 className="text-3xl sm:text-5xl font-light text-stone-900">
+            Real Estate <span className="font-semibold">Advisors</span>
           </h1>
-          <p className="mt-3 text-sm text-slate-400">
-            Connect directly with licensed specialists across primary real estate hubs. Book a private consultation or tour in your local timezone.
+          <p className="mt-4 text-sm text-stone-500 leading-relaxed">
+            Licensed specialists with deep expertise in their markets. Reach out to schedule a private consultation or property tour.
           </p>
         </div>
 

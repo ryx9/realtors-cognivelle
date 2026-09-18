@@ -16,8 +16,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: 'Cognivelle Realtors | Luxury Real Estate & Cross-Timezone Showing System',
-  description: 'Premier global real estate platform coupled with Supabase and an atomic slot conflict prevention engine across multi-timezones.',
+  title: 'Cognivelle Realtors | Luxury Real Estate Worldwide',
+  description: 'Premier global real estate brokerage specializing in luxury residences across New York, London, Malibu, Tokyo, and beyond. Private showings and bespoke advisory.',
 };
 
 export default function RootLayout({
@@ -26,9 +26,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-950 text-slate-100 min-h-screen flex flex-col`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground min-h-screen flex flex-col`}
       >
         <Navbar />
         <main className="flex-1">{children}</main>

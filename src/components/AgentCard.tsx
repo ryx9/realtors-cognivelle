@@ -1,43 +1,39 @@
 import Link from 'next/link';
 import { Agent } from '@/types/database';
-import { Mail, Phone, Globe, Calendar } from 'lucide-react';
+import { Mail, Phone, Calendar } from 'lucide-react';
 
 export default function AgentCard({ agent }: { agent: Agent }) {
   return (
-    <div className="bg-slate-900 border border-slate-800 hover:border-amber-400/50 rounded-2xl p-6 transition-all duration-300 flex flex-col justify-between shadow-xl group">
+    <div className="bg-white border border-stone-200 hover:border-stone-300 rounded-2xl p-6 transition-all duration-300 flex flex-col justify-between shadow-sm group hover:shadow-md">
       <div>
         <div className="flex items-start space-x-4 mb-4">
           <img
             src={agent.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400'}
             alt={agent.name}
-            className="w-16 h-16 rounded-2xl object-cover border-2 border-amber-400/50 shadow-md group-hover:scale-105 transition-transform"
+            className="w-16 h-16 rounded-2xl object-cover border border-stone-200 shadow-sm group-hover:scale-105 transition-transform"
           />
           <div>
-            <h3 className="text-lg font-bold text-white group-hover:text-amber-400 transition-colors">
+            <h3 className="text-lg font-semibold text-stone-900 group-hover:text-amber-800 transition-colors">
               {agent.name}
             </h3>
-            <p className="text-xs text-amber-400/90 font-medium">{agent.title}</p>
-            <div className="flex items-center space-x-1.5 mt-1 text-[11px] text-slate-400">
-              <Globe className="w-3.5 h-3.5 text-amber-400" />
-              <span className="font-mono">{agent.timezone}</span>
-            </div>
+            <p className="text-xs text-stone-500 font-medium">{agent.title}</p>
           </div>
         </div>
 
         {agent.bio && (
-          <p className="text-xs text-slate-400 leading-relaxed mb-4 line-clamp-3">
+          <p className="text-sm text-stone-500 leading-relaxed mb-4 line-clamp-3">
             {agent.bio}
           </p>
         )}
 
-        <div className="space-y-1.5 py-3 border-t border-slate-800/80 text-xs text-slate-300">
+        <div className="space-y-1.5 py-3 border-t border-stone-100 text-xs text-stone-600">
           <div className="flex items-center space-x-2">
-            <Mail className="w-3.5 h-3.5 text-slate-500" />
+            <Mail className="w-3.5 h-3.5 text-stone-400" />
             <span className="truncate">{agent.email}</span>
           </div>
           {agent.phone && (
             <div className="flex items-center space-x-2">
-              <Phone className="w-3.5 h-3.5 text-slate-500" />
+              <Phone className="w-3.5 h-3.5 text-stone-400" />
               <span>{agent.phone}</span>
             </div>
           )}
@@ -47,10 +43,10 @@ export default function AgentCard({ agent }: { agent: Agent }) {
       <div className="pt-4">
         <Link
           href={`/agents/${agent.id}`}
-          className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-white font-semibold text-xs transition-all flex items-center justify-center space-x-2 border border-slate-700 hover:border-amber-400 shadow-sm"
+          className="w-full py-2.5 px-4 rounded-full bg-stone-900 hover:bg-stone-800 text-white font-medium text-xs transition-all flex items-center justify-center space-x-2"
         >
           <Calendar className="w-3.5 h-3.5" />
-          <span>Book Consultation & View Listings</span>
+          <span>Schedule a Consultation</span>
         </Link>
       </div>
     </div>
