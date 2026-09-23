@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Agent, AgentAvailability } from '@/types/database';
-import { Clock, Users, Save, CheckCircle, AlertCircle, RefreshCw, Globe } from 'lucide-react';
+import { Clock, Users, Save, CheckCircle, AlertCircle, RefreshCw, Globe, Shield } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
 
 const DAYS_OF_WEEK = [
   { index: 1, label: 'Monday' },
@@ -15,6 +16,7 @@ const DAYS_OF_WEEK = [
 ];
 
 export default function AdminAvailabilityPage() {
+  const { role, profile } = useAuth();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
@@ -35,9 +37,12 @@ export default function AdminAvailabilityPage() {
     const fetchAgents = async () => {
       try {
         const res = await fetch('/api/agents?includeInactive=true');
-        const data = await res.json();
+        const data: Agent[] = await res.json();
         setAgents(data);
-        if (data.length > 0) {
+
+        if (role === 'agent' && profile?.agent_id) {
+          setSelectedAgentId(profile.agent_id);
+        } else if (data.length > 0) {
           setSelectedAgentId(data[0].id);
         }
       } catch (err) {
@@ -47,7 +52,7 @@ export default function AdminAvailabilityPage() {
       }
     };
     fetchAgents();
-  }, []);
+  }, [role, profile?.agent_id]);
 
   useEffect(() => {
     if (!selectedAgentId) return;
@@ -172,18 +177,28 @@ export default function AdminAvailabilityPage() {
             <Users className="w-5 h-5" />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Select Agent to Configure</label>
-            <select
-              value={selectedAgentId}
-              onChange={(e) => setSelectedAgentId(e.target.value)}
-              className="bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
-            >
-              {agents.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name} ({a.timezone})
-                </option>
-              ))}
-            </select>
+            <label className="block text-xs font-semibold text-slate-300 mb-1">
+              {role === 'agent' ? 'Your Advisor Schedule' : 'Select Agent to Configure'}
+            </label>
+            {role === 'agent' && profile?.agent_id ? (
+              <div className="px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white font-semibold flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-cyan-400" />
+                <span>{selectedAgent?.name || profile.full_name}</span>
+                <span className="text-slate-500 font-mono text-[11px]">({selectedAgent?.timezone})</span>
+              </div>
+            ) : (
+              <select
+                value={selectedAgentId}
+                onChange={(e) => setSelectedAgentId(e.target.value)}
+                className="bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
+              >
+                {agents.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name} ({a.timezone})
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         </div>
 

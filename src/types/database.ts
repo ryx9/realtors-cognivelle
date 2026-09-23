@@ -2,6 +2,17 @@ export type PropertyType = 'Single Family' | 'Condo' | 'Townhouse' | 'Penthouse'
 export type ListingStatus = 'active' | 'pending' | 'sold' | 'archived';
 export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
 export type TourType = 'in_person' | 'virtual_video';
+export type UserRole = 'admin' | 'agent' | 'client';
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  full_name?: string | null;
+  role: UserRole;
+  agent_id?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
 
 export interface Agent {
   id: string;

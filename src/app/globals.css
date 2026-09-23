@@ -2,25 +2,154 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Importing Inter Tight (Headings) and Inter (Body text) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Inter+Tight:wght@600;700;800;900&display=swap');
+
 :root {
-  --background: #faf9f7;
-  --foreground: #1c1917;
-  --muted: #78716c;
-  --border: #e7e5e4;
-  --accent: #92400e;
-  --accent-light: #b45309;
-  --card: #ffffff;
+  /* Restored original color scheme */
+  --background: #f5f3ef;
+  --foreground: #0f0e0c;
+  --muted: #6b6560;
+  --border: #d4cfc8;
+  --border-strong: #0f0e0c;
+  --accent: #8b4a3a;
+  --accent-pale: #f0e8e4;
+  --card: #faf8f5;
+  --white: #ffffff;
+  --rule: #0f0e0c;
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: inherit;
-  -webkit-font-smoothing: antialiased;
+@layer base {
+  body {
+    color: var(--foreground);
+    background: var(--background);
+    font-family: 'Inter', system-ui, sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility; 
+  }
+
+  /* Structural Base Typography - Corporate & Blunt */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter Tight', system-ui, sans-serif;
+    color: var(--foreground);
+    font-weight: 800; /* Extremely solid, un-sharp weight */
+    line-height: 1.05; 
+    letter-spacing: -0.03em;
+    margin-bottom: 0.5em;
+    text-wrap: balance;
+  }
+
+  h1 {
+    font-size: clamp(2.5rem, 5vw + 1rem, 5.5rem); 
+    font-weight: 900;
+    letter-spacing: -0.04em; 
+    line-height: 1; 
+  }
+
+  h2 {
+    font-size: clamp(2rem, 4vw + 1rem, 4rem);
+    letter-spacing: -0.03em;
+  }
+
+  h3 {
+    font-size: clamp(1.5rem, 3vw + 1rem, 2.5rem);
+    letter-spacing: -0.02em;
+  }
+
+  p {
+    max-width: 65ch;
+    margin-bottom: 1.5rem;
+    font-weight: 400;
+    color: var(--foreground);
+  }
+
+  strong, b {
+    font-weight: 600; /* Inter at 600 is plenty strong for body text */
+    color: var(--border-strong);
+  }
 }
 
 @layer utilities {
+  .font-display {
+    font-family: 'Inter Tight', system-ui, sans-serif;
+  }
+
   .text-balance {
     text-wrap: balance;
   }
+  
+  .text-pretty {
+    text-wrap: pretty;
+  }
+
+  .text-mega {
+    font-size: clamp(4rem, 10vw + 1rem, 12rem);
+    line-height: 0.9; 
+    letter-spacing: -0.05em;
+    font-weight: 900;
+  }
+  
+  .text-eyebrow {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  /* Symmetrical interactive hover utilities */
+  .hover-symmetrical-line {
+    position: relative;
+  }
+  .hover-symmetrical-line::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 100%;
+    height: 1.5px;
+    background-color: var(--foreground);
+    transform: scaleX(0);
+    transform-origin: center;
+    transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+  }
+  .hover-symmetrical-line:hover::after {
+    transform: scaleX(1);
+  }
+
+  /* Symmetrical button fill effect expanding from center */
+  .btn-symmetrical-fill {
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+  }
+  .btn-symmetrical-fill::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: center;
+    transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+    z-index: -1;
+  }
+  .btn-symmetrical-fill:hover::before {
+    transform: scaleX(1);
+  }
+
+  /* Compact hide scrollbar but allow scrolling */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }
+

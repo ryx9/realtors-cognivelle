@@ -20,6 +20,24 @@ export const POPULAR_TIMEZONES: TimezoneOption[] = [
 ];
 
 /**
+ * Get deterministic day of week (0 = Sunday, 1 = Monday ... 6 = Saturday)
+ * Immune to server environment timezone.
+ */
+export function getDayOfWeekFromDateStr(dateStr: string): number {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0)).getUTCDay();
+}
+
+/**
+ * Add or subtract calendar days from a 'YYYY-MM-DD' date string safely
+ */
+export function addDaysToDateStr(dateStr: string, days: number): string {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const d = new Date(Date.UTC(year, month - 1, day + days, 12, 0, 0));
+  return d.toISOString().split('T')[0];
+}
+
+/**
  * Detect client browser timezone safely with fallback
  */
 export function getBrowserTimezone(): string {
@@ -32,6 +50,27 @@ export function getBrowserTimezone(): string {
     }
   }
   return 'America/New_York';
+}
+
+/**
+ * Get current date string 'YYYY-MM-DD' in specified timezone
+ */
+export function getLocalTodayStr(timeZone?: string): string {
+  const tz = timeZone || getBrowserTimezone();
+  try {
+    return formatInTimeZone(new Date(), tz, 'yyyy-MM-dd');
+  } catch {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+}
+
+/**
+ * Get tomorrow's date string 'YYYY-MM-DD' in specified timezone
+ */
+export function getLocalTomorrowStr(timeZone?: string): string {
+  const today = getLocalTodayStr(timeZone);
+  return addDaysToDateStr(today, 1);
 }
 
 /**
@@ -63,14 +102,15 @@ export function doIntervalsOverlap(
 }
 
 /**
- * Generates slot options for an agent on a specific calendar date (YYYY-MM-DD)
- * Takes into account agent weekly availability, existing bookings, and formats into both
- * the client's timezone and the agent's timezone.
+ * Generates slot options for an agent on a specific client calendar date (YYYY-MM-DD).
+ * Accounts for cross-timezone boundaries: an agent working in New York or Tokyo
+ * can have working windows that span into adjacent client dates.
+ * Filters slots precisely for the client's chosen date in the client's timezone.
  */
 export function generateAgentSlotsForDate({
   agentTimezone,
   clientTimezone,
-  dateStr, // 'YYYY-MM-DD'
+  dateStr, // 'YYYY-MM-DD' in client's perspective
   availability,
   existingBookings,
 }: {
@@ -80,94 +120,112 @@ export function generateAgentSlotsForDate({
   availability: AgentAvailability[];
   existingBookings: Booking[];
 }): GeneratedSlot[] {
-  // Determine day of week in agent's timezone for the selected date
-  // e.g. 2026-09-20T12:00:00 in agent timezone
-  const midDayZoned = fromZonedTime(`${dateStr} 12:00:00`, agentTimezone);
-  const dayOfWeek = midDayZoned.getDay(); // 0 = Sunday, 1 = Monday, ... 6 = Saturday
-
-  // Find availability rule for this day of week
-  const rule = availability.find((a) => a.day_of_week === dayOfWeek && a.is_active);
-
-  if (!rule) {
+  if (!availability || availability.length === 0) {
     return [];
   }
 
-  const [startHourStr, startMinStr] = rule.start_time.split(':');
-  const [endHourStr, endMinStr] = rule.end_time.split(':');
+  // To catch any agent working window that overlaps with client's requested date,
+  // we evaluate the day before, the selected date, and the day after in agent time.
+  const candidateAgentDates = [
+    addDaysToDateStr(dateStr, -1),
+    dateStr,
+    addDaysToDateStr(dateStr, 1),
+  ];
 
-  const startHour = parseInt(startHourStr, 10);
-  const startMin = parseInt(startMinStr, 10);
-  const endHour = parseInt(endHourStr, 10);
-  const endMin = parseInt(endMinStr, 10);
-
-  const slotDurationMinutes = rule.slot_duration_minutes || 45;
-  const totalWindowMinutes = (endHour * 60 + endMin) - (startHour * 60 + startMin);
-
-  if (totalWindowMinutes <= 0) return [];
-
-  const slots: GeneratedSlot[] = [];
   const now = new Date();
-
-  // Active (non-cancelled) bookings to check against
-  const activeBookings = existingBookings.filter(
+  const activeBookings = (existingBookings || []).filter(
     (b) => b.status !== 'cancelled'
   );
 
-  let currentMinutes = startHour * 60 + startMin;
-  const endWindowMinutes = endHour * 60 + endMin;
+  const slots: GeneratedSlot[] = [];
+  const seenSlotKeys = new Set<string>();
 
-  while (currentMinutes + slotDurationMinutes <= endWindowMinutes) {
-    const slotStartH = Math.floor(currentMinutes / 60);
-    const slotStartM = currentMinutes % 60;
+  for (const agentDate of candidateAgentDates) {
+    const dow = getDayOfWeekFromDateStr(agentDate);
+    const rule = availability.find((a) => a.day_of_week === dow && a.is_active);
 
-    const slotEndMinutes = currentMinutes + slotDurationMinutes;
-    const slotEndH = Math.floor(slotEndMinutes / 60);
-    const slotEndM = slotEndMinutes % 60;
+    if (!rule) continue;
 
-    const startFormatted = `${String(slotStartH).padStart(2, '0')}:${String(slotStartM).padStart(2, '0')}:00`;
-    const endFormatted = `${String(slotEndH).padStart(2, '0')}:${String(slotEndM).padStart(2, '0')}:00`;
+    const [startHourStr, startMinStr] = (rule.start_time || '09:00:00').split(':');
+    const [endHourStr, endMinStr] = (rule.end_time || '17:00:00').split(':');
 
-    // Convert agent's local date/time to UTC Date
-    const startUtcDate = fromZonedTime(`${dateStr} ${startFormatted}`, agentTimezone);
-    const endUtcDate = fromZonedTime(`${dateStr} ${endFormatted}`, agentTimezone);
+    const startHour = parseInt(startHourStr, 10);
+    const startMin = parseInt(startMinStr, 10);
+    const endHour = parseInt(endHourStr, 10);
+    const endMin = parseInt(endMinStr, 10);
 
-    // Check conflict with existing bookings
-    let isAvailable = true;
-    let conflictReason: string | undefined = undefined;
+    const slotDurationMinutes = rule.slot_duration_minutes || 45;
+    const endWindowMinutes = endHour * 60 + endMin;
 
-    // 1. Is it in the past?
-    if (startUtcDate.getTime() < now.getTime()) {
-      isAvailable = false;
-      conflictReason = 'Past time slot';
-    }
+    let currentMinutes = startHour * 60 + startMin;
 
-    // 2. Overlap with an existing confirmed/pending booking?
-    if (isAvailable) {
-      for (const booking of activeBookings) {
-        const bStart = new Date(booking.start_time);
-        const bEnd = new Date(booking.end_time);
+    while (currentMinutes + slotDurationMinutes <= endWindowMinutes) {
+      const slotStartH = Math.floor(currentMinutes / 60);
+      const slotStartM = currentMinutes % 60;
 
-        if (doIntervalsOverlap(startUtcDate, endUtcDate, bStart, bEnd)) {
-          isAvailable = false;
-          conflictReason = `Slot already booked (${booking.tour_type === 'virtual_video' ? 'Virtual Tour' : 'Showing'})`;
-          break;
+      const slotEndMinutes = currentMinutes + slotDurationMinutes;
+      const slotEndH = Math.floor(slotEndMinutes / 60);
+      const slotEndM = slotEndMinutes % 60;
+
+      const startFormatted = `${String(slotStartH).padStart(2, '0')}:${String(slotStartM).padStart(2, '0')}:00`;
+      const endFormatted = `${String(slotEndH).padStart(2, '0')}:${String(slotEndM).padStart(2, '0')}:00`;
+
+      // Convert agent's local date & time into absolute UTC Date
+      const startUtcDate = fromZonedTime(`${agentDate} ${startFormatted}`, agentTimezone);
+      const endUtcDate = fromZonedTime(`${agentDate} ${endFormatted}`, agentTimezone);
+
+      // Verify that in the CLIENT'S timezone, this slot actually falls on the requested date!
+      const clientSlotDate = formatInTimeZone(startUtcDate, clientTimezone, 'yyyy-MM-dd');
+
+      if (clientSlotDate === dateStr) {
+        const slotKey = startUtcDate.toISOString();
+        if (!seenSlotKeys.has(slotKey)) {
+          seenSlotKeys.add(slotKey);
+
+          let isAvailable = true;
+          let conflictReason: string | undefined = undefined;
+
+          // 1. Is slot in the past? (With a 15-minute grace window for preparation)
+          if (startUtcDate.getTime() <= now.getTime() + 15 * 60 * 1000) {
+            isAvailable = false;
+            conflictReason = 'Time slot has passed';
+          }
+
+          // 2. Conflict with an existing confirmed/pending booking?
+          if (isAvailable) {
+            for (const booking of activeBookings) {
+              const bStart = new Date(booking.start_time);
+              const bEnd = new Date(booking.end_time);
+
+              if (doIntervalsOverlap(startUtcDate, endUtcDate, bStart, bEnd)) {
+                isAvailable = false;
+                conflictReason = `Slot booked (${booking.tour_type === 'virtual_video' ? 'Virtual Tour' : 'Showing'})`;
+                break;
+              }
+            }
+          }
+
+          slots.push({
+            startTimeUtc: startUtcDate.toISOString(),
+            endTimeUtc: endUtcDate.toISOString(),
+            clientStartTimeFormatted: formatInTimeZone(startUtcDate, clientTimezone, 'h:mm a'),
+            clientEndTimeFormatted: formatInTimeZone(endUtcDate, clientTimezone, 'h:mm a (zzz)'),
+            agentStartTimeFormatted: formatInTimeZone(startUtcDate, agentTimezone, 'h:mm a'),
+            agentEndTimeFormatted: formatInTimeZone(endUtcDate, agentTimezone, 'h:mm a (zzz)'),
+            isAvailable,
+            conflictReason,
+          });
         }
       }
+
+      currentMinutes += slotDurationMinutes;
     }
-
-    slots.push({
-      startTimeUtc: startUtcDate.toISOString(),
-      endTimeUtc: endUtcDate.toISOString(),
-      clientStartTimeFormatted: formatInTimeZone(startUtcDate, clientTimezone, 'h:mm a'),
-      clientEndTimeFormatted: formatInTimeZone(endUtcDate, clientTimezone, 'h:mm a (zzz)'),
-      agentStartTimeFormatted: formatInTimeZone(startUtcDate, agentTimezone, 'h:mm a'),
-      agentEndTimeFormatted: formatInTimeZone(endUtcDate, agentTimezone, 'h:mm a (zzz)'),
-      isAvailable,
-      conflictReason,
-    });
-
-    currentMinutes += slotDurationMinutes;
   }
+
+  // Sort slots chronologically
+  slots.sort(
+    (a, b) => new Date(a.startTimeUtc).getTime() - new Date(b.startTimeUtc).getTime()
+  );
 
   return slots;
 }

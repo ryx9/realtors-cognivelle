@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import { Agent, Listing, AgentAvailability, Booking, AdminStats } from '@/types/database';
+import { Agent, Listing, AgentAvailability, Booking, AdminStats, UserProfile, UserRole } from '@/types/database';
 import { INITIAL_AGENTS, INITIAL_AVAILABILITY, INITIAL_LISTINGS, INITIAL_BOOKINGS } from './mock-data';
 import { doIntervalsOverlap } from './timezone-utils';
 
@@ -11,6 +11,7 @@ declare global {
     listings: Listing[];
     availability: AgentAvailability[];
     bookings: Booking[];
+    profiles: UserProfile[];
     conflictsPreventedCount: number;
   } | undefined;
 }
@@ -21,6 +22,15 @@ if (!globalThis.__mockDb) {
     listings: [...INITIAL_LISTINGS],
     availability: [...INITIAL_AVAILABILITY],
     bookings: [...INITIAL_BOOKINGS],
+    profiles: [
+      {
+        id: 'usr-admin-demo',
+        email: 'admin@cognivellerealtors.com',
+        full_name: 'Administrator',
+        role: 'admin',
+        agent_id: null,
+      },
+    ],
     conflictsPreventedCount: 3, // starting metric for demonstration
   };
 }
@@ -55,7 +65,19 @@ export async function getAgentById(id: string): Promise<Agent | null> {
 export async function createAgent(agentData: Omit<Agent, 'id' | 'created_at' | 'updated_at'>): Promise<Agent> {
   if (isSupabaseConfigured && supabase) {
     const { data, error } = await supabase.from('agents').insert(agentData).select().single();
-    if (!error && data) return data as Agent;
+    if (!error && data) {
+      // Automatically initialize default Monday-Friday working availability in Supabase
+      const defaultAvail = [1, 2, 3, 4, 5].map((dow) => ({
+        agent_id: data.id,
+        day_of_week: dow,
+        start_time: '09:00:00',
+        end_time: '17:00:00',
+        slot_duration_minutes: 45,
+        is_active: true,
+      }));
+      await supabase.from('agent_availability').insert(defaultAvail);
+      return data as Agent;
+    }
     if (error) throw new Error(error.message);
   }
 
@@ -195,10 +217,46 @@ export async function getAgentAvailability(agentId: string): Promise<AgentAvaila
       .select('*')
       .eq('agent_id', agentId)
       .order('day_of_week');
-    if (!error && data) return data as AgentAvailability[];
+
+    if (!error && data && data.length > 0) {
+      return data as AgentAvailability[];
+    }
+
+    // If agent exists in Supabase but has no availability records, auto-seed standard Mon-Fri hours
+    if (!error && data && data.length === 0) {
+      const defaultAvail = [0, 1, 2, 3, 4, 5, 6].map((dow) => ({
+        agent_id: agentId,
+        day_of_week: dow,
+        start_time: '09:00:00',
+        end_time: '17:00:00',
+        slot_duration_minutes: 45,
+        is_active: dow >= 1 && dow <= 5,
+      }));
+      const { data: inserted } = await supabase
+        .from('agent_availability')
+        .insert(defaultAvail)
+        .select();
+      if (inserted && inserted.length > 0) {
+        return inserted as AgentAvailability[];
+      }
+    }
   }
 
-  return db.availability.filter((a) => a.agent_id === agentId);
+  const existingInDb = db.availability.filter((a) => a.agent_id === agentId);
+  if (existingInDb.length > 0) return existingInDb;
+
+  // Fallback defaults for in-memory agent
+  const fallbackAvail: AgentAvailability[] = [0, 1, 2, 3, 4, 5, 6].map((dow) => ({
+    id: `avail-${agentId}-${dow}`,
+    agent_id: agentId,
+    day_of_week: dow,
+    start_time: '09:00:00',
+    end_time: '17:00:00',
+    slot_duration_minutes: 45,
+    is_active: dow >= 1 && dow <= 5,
+  }));
+  db.availability.push(...fallbackAvail);
+  return fallbackAvail;
 }
 
 export async function saveAgentAvailability(
@@ -297,6 +355,7 @@ export async function checkBookingConflict(
 export async function getBookings(filters?: {
   agentId?: string;
   status?: string;
+  clientEmail?: string;
 }): Promise<Booking[]> {
   if (isSupabaseConfigured && supabase) {
     let query = supabase
@@ -306,6 +365,7 @@ export async function getBookings(filters?: {
 
     if (filters?.agentId) query = query.eq('agent_id', filters.agentId);
     if (filters?.status) query = query.eq('status', filters.status);
+    if (filters?.clientEmail) query = query.eq('client_email', filters.clientEmail);
 
     const { data, error } = await query;
     if (!error && data) return data as Booking[];
@@ -317,6 +377,9 @@ export async function getBookings(filters?: {
   }
   if (filters?.status) {
     result = result.filter((b) => b.status === filters.status);
+  }
+  if (filters?.clientEmail) {
+    result = result.filter((b) => b.client_email.toLowerCase() === filters.clientEmail?.toLowerCase());
   }
 
   return result.map((b) => ({
@@ -422,4 +485,101 @@ export async function getAdminStats(): Promise<AdminStats> {
     confirmedBookings: bookings.filter((b) => b.status === 'confirmed').length,
     conflictsPreventedCount: db.conflictsPreventedCount,
   };
+}
+
+export async function deleteListing(id: string): Promise<boolean> {
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase.from('listings').delete().eq('id', id);
+    if (!error) return true;
+    if (error) throw new Error(error.message);
+  }
+
+  const idx = db.listings.findIndex((l) => l.id === id);
+  if (idx !== -1) {
+    db.listings.splice(idx, 1);
+    return true;
+  }
+  return false;
+}
+
+export async function deleteAgent(id: string): Promise<boolean> {
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase.from('agents').delete().eq('id', id);
+    if (!error) return true;
+    if (error) throw new Error(error.message);
+  }
+
+  const idx = db.agents.findIndex((a) => a.id === id);
+  if (idx !== -1) {
+    db.agents.splice(idx, 1);
+    return true;
+  }
+  return false;
+}
+
+export async function getAgentByEmail(email: string): Promise<Agent | null> {
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase
+      .from('agents')
+      .select('*')
+      .ilike('email', email)
+      .single();
+    if (!error && data) return data as Agent;
+  }
+
+  return db.agents.find((a) => a.email.toLowerCase() === email.toLowerCase()) || null;
+}
+
+// ============================================================================
+// USER PROFILES & RBAC
+// ============================================================================
+export async function getUserProfile(userId: string): Promise<UserProfile | null> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      if (!error && data) return data as UserProfile;
+    } catch {
+      // profiles table might not be migrated yet; fallback below
+    }
+  }
+
+  return db.profiles.find((p) => p.id === userId) || null;
+}
+
+export async function upsertUserProfile(profile: Partial<UserProfile> & { id: string; email: string }): Promise<UserProfile> {
+  const fullProfile: UserProfile = {
+    id: profile.id,
+    email: profile.email,
+    full_name: profile.full_name || null,
+    role: profile.role || 'client',
+    agent_id: profile.agent_id || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .upsert(fullProfile)
+        .select()
+        .single();
+      if (!error && data) return data as UserProfile;
+    } catch {
+      // profiles table might not exist yet; proceed to local store
+    }
+  }
+
+  const existingIdx = db.profiles.findIndex((p) => p.id === profile.id);
+  if (existingIdx !== -1) {
+    db.profiles[existingIdx] = { ...db.profiles[existingIdx], ...fullProfile };
+    return db.profiles[existingIdx];
+  } else {
+    fullProfile.created_at = new Date().toISOString();
+    db.profiles.push(fullProfile);
+    return fullProfile;
+  }
 }

@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Listing, Agent } from '@/types/database';
-import { Building2, Plus, MapPin, CheckCircle, AlertCircle, RefreshCw, Eye } from 'lucide-react';
+import { Building2, Plus, MapPin, CheckCircle, AlertCircle, RefreshCw, Eye, Shield, Briefcase } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '@/lib/auth-context';
 
 export default function AdminListingsPage() {
+  const { role, profile } = useAuth();
   const [listings, setListings] = useState<Listing[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,7 +47,10 @@ export default function AdminListingsPage() {
 
       setListings(listingsData);
       setAgents(agentsData);
-      if (agentsData.length > 0 && !agentId) {
+
+      if (role === 'agent' && profile?.agent_id) {
+        setAgentId(profile.agent_id);
+      } else if (agentsData.length > 0 && !agentId) {
         setAgentId(agentsData[0].id);
       }
     } catch (err: any) {
@@ -53,7 +58,7 @@ export default function AdminListingsPage() {
     } finally {
       setLoading(false);
     }
-  }, [agentId]);
+  }, [agentId, role, profile?.agent_id]);
 
   useEffect(() => {
     fetchData();

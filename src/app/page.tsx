@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { getListings, getAgents } from '@/lib/data-service';
-import ListingCard from '@/components/ListingCard';
 import AgentCard from '@/components/AgentCard';
-import { Building2, Globe, Key, ArrowRight } from 'lucide-react';
+import HeroSection from '@/components/HeroSection';
+import PropertyCarousel from '@/components/PropertyCarousel';
+import { ArrowRight } from 'lucide-react';
 
 export const revalidate = 0;
 
@@ -12,131 +13,106 @@ export default async function HomePage() {
     getAgents(),
   ]);
 
-  const featuredListings = listings.filter((l) => l.featured).slice(0, 3);
+  const featuredListings = listings.filter((l) => l.featured);
+  const displayListings = featuredListings.length > 0 ? featuredListings : listings.slice(0, 4);
 
   return (
-    <div className="min-h-screen">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden pt-16 pb-24 lg:pt-28 lg:pb-36 border-b border-stone-200/80">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-amber-100/40 blur-[120px] rounded-full pointer-events-none" />
+    <div className="min-h-screen bg-background">
+      {/* 3D Animated Hero */}
+      <HeroSection />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-          <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-white border border-stone-200 text-stone-600 text-xs font-medium uppercase tracking-widest mb-8 shadow-sm">
-            <span>Est. 2018 · Global Luxury Brokerage</span>
-          </div>
-
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-light tracking-tight text-stone-900 max-w-4xl mx-auto leading-[1.1]">
-            Exceptional Residences,{' '}
-            <span className="font-semibold italic text-amber-800">
-              Extraordinary Lives
-            </span>
-          </h1>
-
-          <p className="mt-6 text-base sm:text-lg text-stone-500 max-w-2xl mx-auto font-light leading-relaxed">
-            From Manhattan penthouses to Malibu oceanfront estates — Cognivelle connects discerning buyers with the world&apos;s most coveted properties through personalized, white-glove service.
-          </p>
-
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+      {/* Featured Properties Section */}
+      <section className="py-12 sm:py-16 md:py-20 border-b border-border bg-background relative z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8 sm:mb-10">
+            <div>
+              <h2 className="font-display text-2xl sm:text-4xl lg:text-5xl font-black uppercase text-foreground tracking-tight">
+                Featured Residences
+              </h2>
+            </div>
             <Link
               href="/listings"
-              className="w-full sm:w-auto px-8 py-4 rounded-full bg-stone-900 hover:bg-stone-800 text-white font-medium transition-all shadow-lg shadow-stone-900/10 flex items-center justify-center space-x-2 text-sm"
+              className="group inline-flex items-center gap-2 text-xs tracking-widest uppercase font-bold text-foreground hover:text-accent transition-colors"
             >
-              <span>Explore Properties</span>
-              <ArrowRight className="w-4 h-4" />
+              <span>Explore Entire Collection</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </Link>
+          </div>
+
+          {/* Interactive Property Carousel & Grid Switcher */}
+          <PropertyCarousel listings={displayListings} />
+        </div>
+      </section>
+
+      {/* Advisors Section */}
+      <section className="py-12 sm:py-16 md:py-20 bg-background relative z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8 sm:mb-10">
+            <div>
+              <h2 className="font-display text-2xl sm:text-4xl lg:text-5xl font-black uppercase text-foreground tracking-tight">
+                Private Advisory Team
+              </h2>
+              <p className="mt-2 text-xs text-muted leading-relaxed max-w-lg">
+                Direct access to top-tier partners across primary global luxury markets. Dedicated advisors with complete discretion and localized knowledge.
+              </p>
+            </div>
 
             <Link
               href="/agents"
-              className="w-full sm:w-auto px-8 py-4 rounded-full bg-white hover:bg-stone-50 text-stone-700 font-medium transition-all border border-stone-200 flex items-center justify-center space-x-2 text-sm shadow-sm"
+              className="group inline-flex items-center gap-2 text-xs tracking-widest uppercase font-bold text-foreground hover:text-accent transition-colors shrink-0"
             >
-              <span>Meet Our Advisors</span>
+              <span>Meet All Advisors</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
 
-          {/* Value Pillars */}
-          <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto text-left">
-            <div className="bg-white border border-stone-200/80 rounded-2xl p-7 shadow-sm">
-              <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-800 flex items-center justify-center mb-4">
-                <Key className="w-5 h-5" />
-              </div>
-              <h3 className="text-stone-900 font-semibold text-sm mb-2">Bespoke Advisory</h3>
-              <p className="text-sm text-stone-500 leading-relaxed">
-                Every client receives dedicated representation from a licensed specialist who understands your market, your timeline, and your vision.
-              </p>
-            </div>
-
-            <div className="bg-white border border-stone-200/80 rounded-2xl p-7 shadow-sm">
-              <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-800 flex items-center justify-center mb-4">
-                <Globe className="w-5 h-5" />
-              </div>
-              <h3 className="text-stone-900 font-semibold text-sm mb-2">Global Reach</h3>
-              <p className="text-sm text-stone-500 leading-relaxed">
-                Our advisors operate across premier markets in New York, London, Malibu, Tokyo, and beyond — wherever your next chapter begins.
-              </p>
-            </div>
-
-            <div className="bg-white border border-stone-200/80 rounded-2xl p-7 shadow-sm">
-              <div className="w-10 h-10 rounded-full bg-amber-50 text-amber-800 flex items-center justify-center mb-4">
-                <Building2 className="w-5 h-5" />
-              </div>
-              <h3 className="text-stone-900 font-semibold text-sm mb-2">Curated Portfolio</h3>
-              <p className="text-sm text-stone-500 leading-relaxed">
-                Each property in our collection is hand-selected for architectural distinction, location, and lasting value.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Featured Properties */}
-      <section className="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between mb-12">
-          <div>
-            <span className="text-xs uppercase tracking-widest text-amber-800 font-medium block mb-2">
-              Curated Portfolio
-            </span>
-            <h2 className="text-2xl sm:text-4xl font-light text-stone-900">
-              Featured <span className="font-semibold">Listings</span>
-            </h2>
-          </div>
-          <Link
-            href="/listings"
-            className="mt-4 sm:mt-0 text-sm text-stone-600 hover:text-amber-800 font-medium flex items-center space-x-1 transition-colors"
-          >
-            <span>View all properties</span>
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {featuredListings.map((listing) => (
-            <ListingCard key={listing.id} listing={listing} />
-          ))}
-        </div>
-      </section>
-
-      {/* Agents Section */}
-      <section className="py-20 bg-white border-y border-stone-200/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-14">
-            <span className="text-xs uppercase tracking-widest text-amber-800 font-medium block mb-2">
-              Our Team
-            </span>
-            <h2 className="text-2xl sm:text-4xl font-light text-stone-900">
-              Meet Our <span className="font-semibold">Advisors</span>
-            </h2>
-            <p className="mt-4 text-sm text-stone-500 leading-relaxed">
-              Licensed specialists with deep local expertise and a shared commitment to exceptional client service.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-border border border-border shadow-md">
             {agents.map((agent) => (
-              <AgentCard key={agent.id} agent={agent} />
+              <div key={agent.id} className="bg-background">
+                <AgentCard agent={agent} />
+              </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Symmetrical VIP Editorial Banner */}
+      <section className="border-t border-border bg-foreground text-background py-12 sm:py-16 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            <div className="lg:col-span-8">
+              <span className="text-[10px] uppercase tracking-widest text-accent-pale font-bold block mb-2">
+                Discreet Global Representation
+              </span>
+              <h3 className="font-display text-2xl sm:text-4xl lg:text-5xl font-black uppercase tracking-tight text-white mb-4">
+                Seeking An Unlisted Trophy Property?
+              </h3>
+              <p className="text-xs sm:text-sm text-background/70 max-w-xl leading-relaxed">
+                Over 40% of prime luxury transactions occur off-market. Connect with a Cognivelle principal advisor for tailored acquisition representation.
+              </p>
+            </div>
+
+            <div className="lg:col-span-4 flex flex-col sm:flex-row lg:flex-col gap-3">
+              <Link
+                href="/agents"
+                className="group relative px-6 py-3.5 bg-accent text-background text-xs font-bold tracking-widest uppercase text-center overflow-hidden"
+              >
+                <span className="relative z-10 flex items-center justify-center gap-2">
+                  Request Private Briefing
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                </span>
+              </Link>
+              <Link
+                href="/listings"
+                className="px-6 py-3.5 border border-background/30 text-background text-xs font-bold tracking-widest uppercase text-center hover:bg-background hover:text-foreground transition-all duration-300"
+              >
+                Browse Public Portfolio
+              </Link>
+            </div>
           </div>
         </div>
       </section>
     </div>
   );
 }
+
